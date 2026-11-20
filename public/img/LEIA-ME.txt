@@ -1,0 +1,3 @@
+Coloque suas imagens aqui (ex.: hero.jpg, corpo.jpg, mente.jpg, alma.jpg)
+e depois preencha o objeto IMAGES no topo de src/SpaSuIluminar.jsx, por exemplo:
+hero: "/img/hero.jpg"
