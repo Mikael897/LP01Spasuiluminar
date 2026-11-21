@@ -19,6 +19,148 @@
       fbq('track', 'PageView');
     </script>
     <!-- End Meta Pixel Code -->
+    <script>
+      (function () {
+        if (window.__spasuTracking) return;
+        window.__spasuTracking = true;
+
+        var PRECOS = {};
+        var ORIGEM = location.hostname.indexOf('su.') === 0 ? 'LP' : 'Site';
+        var WA = 'a[href*="wa.me"], a[href*="api.whatsapp.com"], a[href^="whatsapp:"]';
+
+        function evId(nome) {
+          return nome + '.' + Date.now() + '.' + Math.random().toString(36).slice(2, 10);
+        }
+
+        function enviar(tipo, nome, dados) {
+          if (!window.fbq) return;
+          fbq(tipo, nome, dados, { eventID: evId(nome) });
+        }
+
+        function servicoDoLink(href) {
+          try {
+            var texto = (new URL(href, location.href).searchParams.get('text') || '')
+              .replace(/\s*\[[^\]]*\]\s*$/, '');
+            var m = texto.match(/sobre (?:(?:a|o) )?(.+?)\.?$/i);
+            return m ? m[1] : 'Geral';
+          } catch (e) {
+            return 'Geral';
+          }
+        }
+
+        function categoria(servico) {
+          if (/head spa|capilar/i.test(servico)) return 'Head Spa';
+          if (/massagem|escalda/i.test(servico)) return 'Massagem';
+          if (/facial/i.test(servico)) return 'Estética';
+          if (/tar[oô]/i.test(servico)) return 'Tarô';
+          return 'Geral';
+        }
+
+        function dadosServico(servico) {
+          var dados = {
+            content_name: servico,
+            content_category: categoria(servico),
+            content_type: 'service',
+            origem: ORIGEM
+          };
+          if (PRECOS[servico]) {
+            dados.value = PRECOS[servico];
+            dados.currency = 'BRL';
+          }
+          return dados;
+        }
+
+        var REF_KEY = 'spasu_ref';
+        function lerRef() {
+          try {
+            var referencia = JSON.parse(localStorage.getItem(REF_KEY) || 'null');
+            if (referencia && Date.now() - referencia.t < 7 * 864e5) return referencia.v;
+          } catch (e) {}
+          return null;
+        }
+
+        (function gravarRef() {
+          try {
+            var parametros = new URLSearchParams(location.search);
+            var veioDeAnuncio = parametros.get('fbclid') || parametros.get('utm_source') || parametros.get('utm_campaign');
+            if (!veioDeAnuncio) return;
+            var conteudo = (parametros.get('utm_content') || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
+              .replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 24);
+            localStorage.setItem(REF_KEY, JSON.stringify({
+              v: conteudo ? 'AD:' + conteudo : 'AD',
+              t: Date.now()
+            }));
+          } catch (e) {}
+        })();
+
+        function marcarRef(link) {
+          var referencia = lerRef();
+          if (!referencia) return;
+          try {
+            var url = new URL(link.href, location.href);
+            var texto = url.searchParams.get('text') || '';
+            if (texto.indexOf('[' + referencia + ']') !== -1) return;
+            url.searchParams.set('text', (texto ? texto + ' ' : '') + '[' + referencia + ']');
+            link.href = url.toString();
+          } catch (e) {}
+        }
+
+        document.addEventListener('click', function (evento) {
+          var link = evento.target.closest && evento.target.closest(WA);
+          if (!link) return;
+          var servico = link.getAttribute('data-servico') || servicoDoLink(link.href);
+          marcarRef(link);
+          enviar('track', 'Contact', dadosServico(servico));
+        }, true);
+
+        var vistos = {};
+        var observador = 'IntersectionObserver' in window ? new IntersectionObserver(function (itens) {
+          itens.forEach(function (item) {
+            if (!item.isIntersecting) return;
+            var elemento = item.target;
+            var servico = elemento.getAttribute('data-servico') || servicoDoLink(elemento.href || '');
+            if (!servico || servico === 'Geral' || vistos[servico]) return;
+            vistos[servico] = true;
+            observador.unobserve(elemento);
+            enviar('track', 'ViewContent', dadosServico(servico));
+          });
+        }, { threshold: 0.6 }) : null;
+
+        function observar() {
+          if (!observador) return;
+          document.querySelectorAll('[data-servico], ' + WA).forEach(function (elemento) {
+            if (elemento.__spasuObs) return;
+            elemento.__spasuObs = true;
+            observador.observe(elemento);
+          });
+        }
+
+        observar();
+        new MutationObserver(observar).observe(document.documentElement, { childList: true, subtree: true });
+
+        var engajou = false;
+        function engajamento(gatilho) {
+          if (engajou) return;
+          engajou = true;
+          enviar('trackCustom', 'EngajamentoPagina', { gatilho: gatilho, origem: ORIGEM });
+        }
+
+        window.addEventListener('scroll', function () {
+          var elemento = document.documentElement;
+          var lido = (window.scrollY + window.innerHeight) / Math.max(elemento.scrollHeight, 1);
+          if (lido >= 0.75) engajamento('scroll75');
+        }, { passive: true });
+
+        var segundos = 0;
+        var timer = setInterval(function () {
+          if (document.visibilityState === 'visible') segundos += 1;
+          if (segundos >= 45) {
+            clearInterval(timer);
+            engajamento('tempo45s');
+          }
+        }, 1000);
+      })();
+    </script>
   </head>
   <body style="margin:0">
     <noscript>

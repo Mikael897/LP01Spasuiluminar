@@ -270,7 +270,7 @@ function Services() {
             <p>{d}</p>
             <div className="card-foot">
               <div><b>{pr}</b>{tm && <small>{tm}</small>}</div>
-              <a className="soft" href={wa(`Olá! Quero saber mais sobre ${n}.`)} target="_blank" rel="noreferrer">Quero saber mais</a>
+              <a className="soft" href={wa(`Olá! Quero saber mais sobre ${n}.`)} data-servico={n} target="_blank" rel="noreferrer">Quero saber mais</a>
             </div>
           </article>
         ))}
