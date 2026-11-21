@@ -24,7 +24,29 @@
         if (window.__spasuTracking) return;
         window.__spasuTracking = true;
 
-        var PRECOS = {};
+        var PRECOS = {
+          'Massagem Terapêutica': 167,
+          'Massagem Relaxante': 157,
+          'Escalda-Pés': 90,
+          'Head Spa Simples': 187,
+          'Head Spa Completo': 197,
+          'Terapia Capilar': 117,
+          'Revitalização Facial': 107,
+          'Ritual Iluminar Relaxante': 197,
+          'Ritual Iluminar Terapêutico': 209,
+          'Caminhos de Luz': 117,
+          'Foco & Luz': 97,
+          'Pontos de Luz': 77,
+          'Uma Luz no Caminho': 37
+        };
+        function preco(servico) {
+          var alvo = (servico || '').toLowerCase();
+          for (var nome in PRECOS) {
+            if (nome.toLowerCase() === alvo) return PRECOS[nome];
+          }
+          return 0;
+        }
+
         var ORIGEM = location.hostname.indexOf('su.') === 0 ? 'LP' : 'Site';
         var WA = 'a[href*="wa.me"], a[href*="api.whatsapp.com"], a[href^="whatsapp:"]';
 
@@ -37,12 +59,26 @@
           fbq(tipo, nome, dados, { eventID: evId(nome) });
         }
 
+        var APELIDOS = {
+          'healing massage': 'Massagem Terapêutica',
+          'sopro de alma': 'Massagem Relaxante'
+        };
+
+        function padronizar(servico) {
+          var nome = (servico || '').trim();
+          return APELIDOS[nome.toLowerCase()] || nome;
+        }
+
         function servicoDoLink(href) {
           try {
             var texto = (new URL(href, location.href).searchParams.get('text') || '')
               .replace(/\s*\[[^\]]*\]\s*$/, '');
+            if (/ritual/i.test(texto)) {
+              return /relaxante/i.test(texto) ? 'Ritual Iluminar Relaxante' : 'Ritual Iluminar Terapêutico';
+            }
             var m = texto.match(/sobre (?:(?:a|o) )?(.+?)\.?$/i);
-            return m ? m[1] : 'Geral';
+            if (!m || /^(os|as) /i.test(m[1])) return 'Geral';
+            return padronizar(m[1]);
           } catch (e) {
             return 'Geral';
           }
@@ -50,9 +86,9 @@
 
         function categoria(servico) {
           if (/head spa|capilar/i.test(servico)) return 'Head Spa';
-          if (/massagem|escalda/i.test(servico)) return 'Massagem';
+          if (/massagem|escalda|ritual/i.test(servico)) return 'Massagem';
           if (/facial/i.test(servico)) return 'Estética';
-          if (/tar[oô]/i.test(servico)) return 'Tarô';
+          if (/tar[oô]|luz/i.test(servico)) return 'Tarô';
           return 'Geral';
         }
 
@@ -63,8 +99,9 @@
             content_type: 'service',
             origem: ORIGEM
           };
-          if (PRECOS[servico]) {
-            dados.value = PRECOS[servico];
+          var valor = preco(servico);
+          if (valor) {
+            dados.value = valor;
             dados.currency = 'BRL';
           }
           return dados;
@@ -108,7 +145,7 @@
         document.addEventListener('click', function (evento) {
           var link = evento.target.closest && evento.target.closest(WA);
           if (!link) return;
-          var servico = link.getAttribute('data-servico') || servicoDoLink(link.href);
+          var servico = padronizar(link.getAttribute('data-servico')) || servicoDoLink(link.href);
           marcarRef(link);
           enviar('track', 'Contact', dadosServico(servico));
         }, true);
@@ -118,7 +155,7 @@
           itens.forEach(function (item) {
             if (!item.isIntersecting) return;
             var elemento = item.target;
-            var servico = elemento.getAttribute('data-servico') || servicoDoLink(elemento.href || '');
+            var servico = padronizar(elemento.getAttribute('data-servico')) || servicoDoLink(elemento.href || '');
             if (!servico || servico === 'Geral' || vistos[servico]) return;
             vistos[servico] = true;
             observador.unobserve(elemento);
